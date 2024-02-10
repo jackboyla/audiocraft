@@ -150,11 +150,10 @@ def _do_predictions(texts, melodies, duration, progress=False, gradio_progress=N
         else:
             # run melody-conditioned generation
             logger.info(f"Running melody-conditioned generation")
-            prompt_sr, prompt_melody = melodies[0]
-            print("prompt_melody.shape", prompt_melody.shape)
+            melody = melodies[0]
+            prompt_sr, prompt_waveform = melody[0], torch.from_numpy(melody[1]).to(MODEL.device).float().t()
+            print("prompt_melody.shape", prompt_waveform.shape)
             print("prompt_sr", prompt_sr)
-            prompt_waveform = torch.from_numpy(prompt_melody[..., :int(duration * prompt_sr)])
-            prompt_waveform = torch.transpose(prompt_waveform, 0, 1)
             output = MODEL.generate_continuation(
                 prompt_waveform, prompt_sample_rate=prompt_sr, progress=True, return_tokens=USE_DIFFUSION)
     except RuntimeError as e:
