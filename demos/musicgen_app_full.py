@@ -114,8 +114,8 @@ def load_diffusion():
         MBD = MultiBandDiffusion.get_mbd_musicgen()
 
 
-def _do_predictions(texts, melodies, duration, progress=False, gradio_progress=None, **gen_kwargs):
-    MODEL.set_generation_params(duration=duration, **gen_kwargs)
+def _do_predictions(texts, melodies, prompt_duration, generation_duration, progress=False, gradio_progress=None, **gen_kwargs):
+    MODEL.set_generation_params(duration=generation_duration, **gen_kwargs)
     print("new batch", len(texts), texts, [None if m is None else (m[0], m[1].shape) for m in melodies])
     be = time.time()
     processed_melodies = []
@@ -128,7 +128,7 @@ def _do_predictions(texts, melodies, duration, progress=False, gradio_progress=N
             sr, melody = melody[0], torch.from_numpy(melody[1]).to(MODEL.device).float().t()
             if melody.dim() == 1:
                 melody = melody[None]
-            melody = melody[..., :int(sr * duration)]
+            melody = melody[..., :int(sr * generation_duration)]
             melody = convert_audio(melody, sr, target_sr, target_ac)
             processed_melodies.append(melody)
 
@@ -152,9 +152,9 @@ def _do_predictions(texts, melodies, duration, progress=False, gradio_progress=N
             logger.info(f"Running melody-conditioned generation")
             melody = melodies[0]
             prompt_sr, prompt_waveform = melody[0], torch.from_numpy(melody[1]).to(MODEL.device).float().t()
-            print("prompt_melody.shape", prompt_waveform.shape)
-            print("prompt_sr", prompt_sr)
-            output = MODEL.generate_continuation(
+            if prompt_duration is not None:
+                prompt_waveform = prompt_waveform[..., :int(prompt_duration * prompt_sr)]
+            outputs = MODEL.generate_continuation(
                 prompt_waveform, prompt_sample_rate=prompt_sr, progress=True, return_tokens=USE_DIFFUSION)
     except RuntimeError as e:
         raise gr.Error("Error while generating " + e.args[0])
@@ -197,7 +197,7 @@ def predict_batched(texts, melodies):
     return res
 
 
-def predict_full(model, model_path, decoder, text, melody, duration, topk, topp, temperature, cfg_coef, progress=gr.Progress()):
+def predict_full(model, model_path, decoder, text, melody, prompt_duration, generation_duration, topk, topp, temperature, cfg_coef, progress=gr.Progress()):
     global INTERRUPTING
     global USE_DIFFUSION
     INTERRUPTING = False
@@ -237,7 +237,7 @@ def predict_full(model, model_path, decoder, text, melody, duration, topk, topp,
     MODEL.set_custom_progress_callback(_progress)
 
     videos, wavs = _do_predictions(
-        [text], [melody], duration, progress=True,
+        [text], [melody], prompt_duration, generation_duration, progress=True,
         top_k=topk, top_p=topp, temperature=temperature, cfg_coef=cfg_coef,
         gradio_progress=progress)
     if USE_DIFFUSION:
@@ -294,7 +294,9 @@ def ui_full(launch_kwargs):
                     decoder = gr.Radio(["Default", "MultiBand_Diffusion"],
                                        label="Decoder", value="Default", interactive=True)
                 with gr.Row():
-                    duration = gr.Slider(minimum=1, maximum=120, value=10, label="Duration", interactive=True)
+                    generation_duration = gr.Slider(minimum=1, maximum=120, value=10, label="Generation Duration", interactive=True)
+                with gr.Row():
+                    prompt_duration = gr.Slider(minimum=1, maximum=120, value=None, label="Prompt Duration", interactive=True)
                 with gr.Row():
                     topk = gr.Number(label="Top-k", value=250, interactive=True)
                     topp = gr.Number(label="Top-p", value=0, interactive=True)
@@ -308,7 +310,7 @@ def ui_full(launch_kwargs):
         
         logger.info(f"text provided : <{text}>")
         submit.click(toggle_diffusion, decoder, [diffusion_output, audio_diffusion], queue=False,
-                     show_progress=False).then(predict_full, inputs=[model, model_path, decoder, text, melody, duration, topk, topp,
+                     show_progress=False).then(predict_full, inputs=[model, model_path, decoder, text, melody, prompt_duration, generation_duration, topk, topp,
                                                                      temperature, cfg_coef],
                                                outputs=[output, audio_output, diffusion_output, audio_diffusion])
         radio.change(toggle_audio_src, radio, [melody], queue=False, show_progress=False)
