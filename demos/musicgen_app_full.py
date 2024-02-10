@@ -258,7 +258,7 @@ def ui_full(launch_kwargs):
     with gr.Blocks() as interface:
         gr.Markdown(
             """
-            # MusicGen
+            # 🪕 MusicGen
             This is your private demo for [MusicGen](https://github.com/facebookresearch/audiocraft),
             a simple and controllable model for music generation
             presented at: ["Simple and Controllable Music Generation"](https://huggingface.co/papers/2306.05284)
@@ -283,7 +283,7 @@ def ui_full(launch_kwargs):
                                       "facebook/musicgen-stereo-small", "facebook/musicgen-stereo-medium",
                                       "facebook/musicgen-stereo-melody", "facebook/musicgen-stereo-large",
                                       "facebook/musicgen-stereo-melody-large"],
-                                     label="Model", value="facebook/musicgen-stereo-melody", interactive=True)
+                                     label="Model", value="facebook/musicgen-small", interactive=True)
                     model_path = gr.Text(label="Model Path (custom models)")
                 with gr.Row():
                     decoder = gr.Radio(["Default", "MultiBand_Diffusion"],
