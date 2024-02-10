@@ -189,8 +189,13 @@ class BaseGenModel(ABC):
             for melody in prompt:
                 if melody is not None:
                     assert melody.dim() == 2, "One melody in the list has the wrong number of dims."
+            # prompt = torch.stack(prompt, dim=0)
 
-        prompt = convert_audio(prompt, prompt_sample_rate, self.sample_rate, self.audio_channels)
+        # prompt = convert_audio(prompt, prompt_sample_rate, self.sample_rate, self.audio_channels)
+        prompt =  [
+            convert_audio(wav, prompt_sample_rate, self.sample_rate, self.audio_channels)
+            if wav is not None else None
+            for wav in prompt]
         if descriptions is None:
             descriptions = [None] * len(prompt)
         attributes, prompt_tokens = self._prepare_tokens_and_attributes(descriptions, prompt)
