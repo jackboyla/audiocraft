@@ -150,10 +150,8 @@ def _do_predictions(texts, melodies, duration, progress=False, gradio_progress=N
         else:
             # run melody-conditioned generation
             logger.info(f"Running melody-conditioned generation")
-            prompt_melody = melodies[0]
-            print("melodies", melodies)
-            print("prompt_melody", prompt_melody.shape)
-            prompt_sr = prompt_melody[0]
+            prompt_sr, prompt_melody = melodies[0]
+            print("prompt_melody.shape", prompt_melody.shape)
             print("prompt_sr", prompt_sr)
             prompt_waveform = prompt_melody[..., :int(duration * prompt_sr)]
             output = MODEL.generate_continuation(
