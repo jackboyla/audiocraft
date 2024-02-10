@@ -187,9 +187,9 @@ class MusicGen(BaseGenModel):
                     sample_rate=[self.sample_rate],
                     path=[None])
         else:
-            # if 'self_wav' not in self.lm.condition_provider.conditioners:
-            #     raise RuntimeError("This model doesn't support melody conditioning. "
-            #                        "Use the `melody` model.")
+            if 'self_wav' not in self.lm.condition_provider.conditioners:
+                raise RuntimeError("This model doesn't support melody conditioning. "
+                                   "Use the `melody` model.")
             assert len(melody_wavs) == len(descriptions), \
                 f"number of melody wavs must match number of descriptions! " \
                 f"got melody len={len(melody_wavs)}, and descriptions len={len(descriptions)}"
