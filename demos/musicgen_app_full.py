@@ -150,8 +150,8 @@ def _do_predictions(texts, melodies, duration, progress=False, gradio_progress=N
         else:
             # run melody-conditioned generation
             logger.info(f"Running melody-conditioned generation")
-            processed_melodies = torch.stack(processed_melodies, dim=0)
-            output = MODEL.generate_continuation(processed_melodies, prompt_sample_rate=target_sr, progress=True, return_tokens=USE_DIFFUSION)
+            prompt_melody = processed_melodies[0]
+            output = MODEL.generate_continuation(prompt_melody, prompt_sample_rate=target_sr, progress=True, return_tokens=USE_DIFFUSION)
     except RuntimeError as e:
         raise gr.Error("Error while generating " + e.args[0])
     if USE_DIFFUSION:
