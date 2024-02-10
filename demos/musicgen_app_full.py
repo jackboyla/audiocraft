@@ -150,8 +150,11 @@ def _do_predictions(texts, melodies, duration, progress=False, gradio_progress=N
         else:
             # run melody-conditioned generation
             logger.info(f"Running melody-conditioned generation")
-            prompt_melody = processed_melodies[0]
-            output = MODEL.generate_continuation(prompt_melody, prompt_sample_rate=target_sr, progress=True, return_tokens=USE_DIFFUSION)
+            prompt_melody = melodies[0]
+            prompt_sr = prompt_melody[0]
+            prompt_waveform = prompt_melody[..., :int(duration * prompt_sr)]
+            output = MODEL.generate_continuation(
+                prompt_waveform, prompt_sample_rate=prompt_sr, progress=True, return_tokens=USE_DIFFUSION)
     except RuntimeError as e:
         raise gr.Error("Error while generating " + e.args[0])
     if USE_DIFFUSION:
@@ -259,7 +262,7 @@ def ui_full(launch_kwargs):
     with gr.Blocks() as interface:
         gr.Markdown(
             """
-            # 🪕 MusicGen
+            # 🪕 MusicGen 🤗
             This is your private demo for [MusicGen](https://github.com/facebookresearch/audiocraft),
             a simple and controllable model for music generation
             presented at: ["Simple and Controllable Music Generation"](https://huggingface.co/papers/2306.05284)
