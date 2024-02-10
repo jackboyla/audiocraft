@@ -153,7 +153,8 @@ def _do_predictions(texts, melodies, duration, progress=False, gradio_progress=N
             prompt_sr, prompt_melody = melodies[0]
             print("prompt_melody.shape", prompt_melody.shape)
             print("prompt_sr", prompt_sr)
-            prompt_waveform = prompt_melody[..., :int(duration * prompt_sr)]
+            prompt_waveform = torch.from_numpy(prompt_melody[..., :int(duration * prompt_sr)])
+            prompt_waveform = torch.transpose(prompt_waveform, 0, 1)
             output = MODEL.generate_continuation(
                 prompt_waveform, prompt_sample_rate=prompt_sr, progress=True, return_tokens=USE_DIFFUSION)
     except RuntimeError as e:
