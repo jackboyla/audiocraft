@@ -151,6 +151,7 @@ def _do_predictions(texts, melodies, duration, progress=False, gradio_progress=N
             # run melody-conditioned generation
             logger.info(f"Running melody-conditioned generation")
             prompt_melody = melodies[0]
+            print("melodies", melodies)
             print("prompt_melody", prompt_melody.shape)
             prompt_sr = prompt_melody[0]
             print("prompt_sr", prompt_sr)
