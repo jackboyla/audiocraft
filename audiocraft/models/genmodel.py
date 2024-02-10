@@ -23,7 +23,9 @@ from .builders import get_wrapped_compression_model
 from ..data.audio_utils import convert_audio
 from ..modules.conditioners import ConditioningAttributes
 from ..utils.autocast import TorchAutocast
-from .musicgen import MelodyType
+
+MelodyList = tp.List[tp.Optional[torch.Tensor]]
+MelodyType = tp.Union[torch.Tensor, MelodyList]
 
 
 class BaseGenModel(ABC):
