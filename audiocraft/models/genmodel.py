@@ -192,13 +192,17 @@ class BaseGenModel(ABC):
             # prompt = torch.stack(prompt, dim=0)
 
         # prompt = convert_audio(prompt, prompt_sample_rate, self.sample_rate, self.audio_channels)
-        prompt =  [
+        melody_wavs =  [
             convert_audio(wav, prompt_sample_rate, self.sample_rate, self.audio_channels)
             if wav is not None else None
             for wav in prompt]
         if descriptions is None:
-            descriptions = [None] * len(prompt)
-        attributes, prompt_tokens = self._prepare_tokens_and_attributes(descriptions, prompt)
+            # descriptions = [None] * len(prompt)
+            descriptions = [None] * len(melody_wavs)
+
+        # attributes, prompt_tokens = self._prepare_tokens_and_attributes(descriptions, prompt)
+        attributes, prompt_tokens = self._prepare_tokens_and_attributes(descriptions=descriptions, prompt=None,
+                                                                        melody_wavs=melody_wavs)
         assert prompt_tokens is not None
         tokens = self._generate_tokens(attributes, prompt_tokens, progress)
         if return_tokens:
