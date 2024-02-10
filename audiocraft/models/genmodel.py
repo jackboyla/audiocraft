@@ -23,6 +23,7 @@ from .builders import get_wrapped_compression_model
 from ..data.audio_utils import convert_audio
 from ..modules.conditioners import ConditioningAttributes
 from ..utils.autocast import TorchAutocast
+from .musicgen import MelodyType
 
 
 class BaseGenModel(ABC):
@@ -163,7 +164,7 @@ class BaseGenModel(ABC):
             return self.generate_audio(tokens), tokens
         return self.generate_audio(tokens)
 
-    def generate_continuation(self, prompt: torch.Tensor, prompt_sample_rate: int,
+    def generate_continuation(self, prompt: MelodyType, prompt_sample_rate: int,
                               descriptions: tp.Optional[tp.List[tp.Optional[str]]] = None,
                               progress: bool = False, return_tokens: bool = False) \
             -> tp.Union[torch.Tensor, tp.Tuple[torch.Tensor, torch.Tensor]]:
@@ -176,10 +177,17 @@ class BaseGenModel(ABC):
             descriptions (list of str, optional): A list of strings used as text conditioning. Defaults to None.
             progress (bool, optional): Flag to display progress of the generation process. Defaults to False.
         """
-        if prompt.dim() == 2:
-            prompt = prompt[None]
-        if prompt.dim() != 3:
-            raise ValueError("prompt should have 3 dimensions: [B, C, T] (C = 1).")
+        if isinstance(prompt, torch.Tensor):
+            if prompt.dim() == 2:
+                prompt = prompt[None]
+            if prompt.dim() != 3:
+                raise ValueError("Prompt Melody wavs should have a shape [B, C, T].")
+            prompt = list(prompt)
+        else:
+            for melody in prompt:
+                if melody is not None:
+                    assert melody.dim() == 2, "One melody in the list has the wrong number of dims."
+
         prompt = convert_audio(prompt, prompt_sample_rate, self.sample_rate, self.audio_channels)
         if descriptions is None:
             descriptions = [None] * len(prompt)
