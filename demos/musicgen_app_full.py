@@ -118,6 +118,7 @@ def _do_predictions(texts, melodies, prompt_duration, generation_duration, progr
     MODEL.set_generation_params(duration=generation_duration, **gen_kwargs)
     print("new batch", len(texts), texts, [None if m is None else (m[0], m[1].shape) for m in melodies])
     be = time.time()
+    melody_only_conditioned = False
     processed_melodies = []
     target_sr = 32000
     target_ac = 1
@@ -149,6 +150,9 @@ def _do_predictions(texts, melodies, prompt_duration, generation_duration, progr
             outputs = MODEL.generate(texts, progress=progress, return_tokens=USE_DIFFUSION)
         else:
             # run melody-conditioned generation
+            melody_only_conditioned = True
+            # TODO: assert that the len of gen duration > len prompt duration
+            # TODO: add len of gen duration + len prompt duration (makes more sense in UI)
             logger.info(f"Running melody-conditioned generation")
             melody = melodies[0]
             prompt_sr, prompt_waveform = melody[0], torch.from_numpy(melody[1]).to(MODEL.device).float().t()
@@ -158,6 +162,8 @@ def _do_predictions(texts, melodies, prompt_duration, generation_duration, progr
                 prompt_waveform, prompt_sample_rate=prompt_sr, progress=True, return_tokens=USE_DIFFUSION)
     except RuntimeError as e:
         raise gr.Error("Error while generating " + e.args[0])
+    if melody_only_conditioned and USE_DIFFUSION:
+        outputs = [MBD.tokens_to_wav(outputs[1])]
     if USE_DIFFUSION:
         if gradio_progress is not None:
             gradio_progress(1, desc='Running MultiBandDiffusion...')
@@ -266,7 +272,13 @@ def ui_full(launch_kwargs):
             # 🪕 MusicGen 🤗
             This is your private demo for [MusicGen](https://github.com/facebookresearch/audiocraft),
             a simple and controllable model for music generation
-            presented at: ["Simple and Controllable Music Generation"](https://huggingface.co/papers/2306.05284)
+            presented at: ["Simple and Controllable Music Generation"](https://huggingface.co/papers/2306.05284).
+
+            There's three options here:
+            1. 🔉 You provide JUST an audio reference and the model will generate a continuation.
+            2. 📖 You provide JUST a text prompt and the model will generate audio based on it.
+            3. 📖 + 🔉 You provide BOTH text prompt + audio reference, and the model will generate audio using both.
+
             """
         )
         with gr.Row():
@@ -294,9 +306,9 @@ def ui_full(launch_kwargs):
                     decoder = gr.Radio(["Default", "MultiBand_Diffusion"],
                                        label="Decoder", value="Default", interactive=True)
                 with gr.Row():
-                    generation_duration = gr.Slider(minimum=1, maximum=120, value=10, label="Generation Duration", interactive=True)
+                    generation_duration = gr.Slider(minimum=1, maximum=120, value=20, label="Generation Duration", interactive=True)
                 with gr.Row():
-                    prompt_duration = gr.Slider(minimum=1, maximum=120, value=None, label="Prompt Duration", interactive=True)
+                    prompt_duration = gr.Slider(minimum=1, maximum=120, value=10, label="Prompt Duration", interactive=True)
                 with gr.Row():
                     topk = gr.Number(label="Top-k", value=250, interactive=True)
                     topp = gr.Number(label="Top-p", value=0, interactive=True)
