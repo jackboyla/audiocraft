@@ -155,6 +155,8 @@ def _do_predictions(texts, melodies, prompt_duration, generation_duration, progr
             # TODO: add len of gen duration + len prompt duration (makes more sense in UI)
             logger.info(f"Running melody-conditioned generation")
             melody = melodies[0]
+            import numpy as np
+            np.save('saved_array.npy', melody[1])
             prompt_sr, prompt_waveform = melody[0], torch.from_numpy(melody[1]).to(MODEL.device).float().t()
             if prompt_duration is not None:
                 prompt_waveform = prompt_waveform[..., :int(prompt_duration * prompt_sr)]
@@ -162,9 +164,9 @@ def _do_predictions(texts, melodies, prompt_duration, generation_duration, progr
                 prompt_waveform, prompt_sample_rate=prompt_sr, progress=True, return_tokens=USE_DIFFUSION)
     except RuntimeError as e:
         raise gr.Error("Error while generating " + e.args[0])
-    if melody_only_conditioned and USE_DIFFUSION:
+    if melody_only_conditioned and USE_DIFFUSION == False:
         outputs = [MBD.tokens_to_wav(outputs[1])]
-    if USE_DIFFUSION:
+    elif USE_DIFFUSION:
         if gradio_progress is not None:
             gradio_progress(1, desc='Running MultiBandDiffusion...')
         tokens = outputs[1]
