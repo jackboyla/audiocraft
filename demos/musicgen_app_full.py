@@ -22,6 +22,7 @@ import warnings
 from einops import rearrange
 import torch
 import gradio as gr
+import soundfile as sf
 
 from audiocraft.data.audio_utils import convert_audio
 from audiocraft.data.audio import audio_write
@@ -114,11 +115,16 @@ def load_diffusion():
         MBD = MultiBandDiffusion.get_mbd_musicgen()
 
 
-def _do_predictions(texts, melodies, prompt_duration, generation_duration, progress=False, gradio_progress=None, **gen_kwargs):
+def _do_predictions(texts, melody_filepaths, prompt_duration, generation_duration, progress=False, gradio_progress=None, **gen_kwargs):
     MODEL.set_generation_params(duration=generation_duration, **gen_kwargs)
+    melodies = []
+    # read in with soundile - Gradio's audio conversion is doing something weird
+    for filepath in melody_filepaths:
+        data, samplerate = sf.read(filepath)
+        melodies.append((samplerate, data))
+
     print("new batch", len(texts), texts, [None if m is None else (m[0], m[1].shape) for m in melodies])
     be = time.time()
-    melody_only_conditioned = False
     processed_melodies = []
     target_sr = 32000
     target_ac = 1
@@ -144,29 +150,24 @@ def _do_predictions(texts, melodies, prompt_duration, generation_duration, progr
                 progress=progress,
                 return_tokens=USE_DIFFUSION
             )
-        # else run text-conditional generation
+        # run text-conditional generation
         elif all(m is None for m in processed_melodies) and any(t != "" for t in texts):
             logger.info(f"Running text-conditioned generation")
             outputs = MODEL.generate(texts, progress=progress, return_tokens=USE_DIFFUSION)
         else:
             # run melody-conditioned generation
-            melody_only_conditioned = True
             # TODO: assert that the len of gen duration > len prompt duration
             # TODO: add len of gen duration + len prompt duration (makes more sense in UI)
             logger.info(f"Running melody-conditioned generation")
-            melody = melodies[0]
-            import numpy as np
-            np.save('saved_array.npy', melody[1])
-            prompt_sr, prompt_waveform = melody[0], torch.from_numpy(melody[1]).to(MODEL.device).float().t()
+            prompt_sr, prompt_waveform = melodies[0]
+            prompt_waveform = torch.from_numpy(prompt_waveform).to(MODEL.device).float().t()
             if prompt_duration is not None:
                 prompt_waveform = prompt_waveform[..., :int(prompt_duration * prompt_sr)]
             outputs = MODEL.generate_continuation(
                 prompt_waveform, prompt_sample_rate=prompt_sr, progress=True, return_tokens=USE_DIFFUSION)
     except RuntimeError as e:
         raise gr.Error("Error while generating " + e.args[0])
-    if melody_only_conditioned and USE_DIFFUSION == False:
-        outputs = [MBD.tokens_to_wav(outputs[1])]
-    elif USE_DIFFUSION:
+    if USE_DIFFUSION:
         if gradio_progress is not None:
             gradio_progress(1, desc='Running MultiBandDiffusion...')
         tokens = outputs[1]
@@ -290,7 +291,7 @@ def ui_full(launch_kwargs):
                     with gr.Column():
                         radio = gr.Radio(["file", "mic"], value="file",
                                          label="Condition on a melody (optional) File or Mic")
-                        melody = gr.Audio(sources=["upload"], type="numpy", label="File",
+                        melody = gr.Audio(sources=["upload"], type="filepath", label="File",
                                           interactive=True, elem_id="melody-input")
                 with gr.Row():
                     submit = gr.Button("Submit")
